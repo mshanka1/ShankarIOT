@@ -22,9 +22,14 @@ B-L475E-IOT01A has some ST **MEMS** (Micro Electro-Mechanical Systems) and senso
 The board is capable of connecting the device with different wireless protocols such as:
 
 * BLE
-* Wi-Fi (Work in Progress)
-* NFC
-* RF 915MHz
+* Wi-Fi (Added WiFi Thread)
+* NFC (ToDo)
+* RF 915MHz (Todo)
 
 # Available connectivity
-
+Next Steps:
+1. Create fully functional WiFi feature
+2. Add MQTT feature
+3. Add text read and write feature with ble to update the wifi settings
+4. Add secure transmission
+5. Add feature to change the MQTT endpoints
