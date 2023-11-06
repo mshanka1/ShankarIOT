@@ -1,0 +1,406 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    app_threadx.c
+  * @author  MCD Application Team
+  * @brief   ThreadX applicative file
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2020-2021 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Includes ------------------------------------------------------------------*/
+#include "app_threadx.h"
+#include "main.h"
+#include "tx_api.h"
+#include "sensors.h"
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+#undef ENABLE_TRACEX_TEST //remove this if tracex is required
+#ifdef ENABLE_TRACEX_TEST
+#define TRACEX_BUFFER_SIZE 64000
+uint8_t tracex_buffer[64000]  __attribute__ ((section (".trace")));
+#endif
+
+#define THREAD_STACK1_SIZE 600
+uint8_t thread_stack[THREAD_STACK1_SIZE];
+#define THREAD_STACK2_SIZE 600
+uint8_t thread_sensor_temp_stack[THREAD_STACK2_SIZE];
+#define THREAD_STACK3_SIZE 600
+uint8_t thread_sensor_hum_stack[THREAD_STACK3_SIZE];
+#define THREAD_STACK4_SIZE 600
+uint8_t thread_sensor_accelo_stack[THREAD_STACK4_SIZE];
+#define THREAD_STACK5_SIZE 600
+uint8_t thread_sensor_pres_stack[THREAD_STACK5_SIZE];
+#define THREAD_STACK6_SIZE 600
+uint8_t thread_sensor_mag_stack[THREAD_STACK6_SIZE];
+#define THREAD_STACK7_SIZE 800
+uint8_t thread_sensor_ble_stack[THREAD_STACK7_SIZE];
+#define THREAD_STACK8_SIZE 600
+uint8_t thread_sensor_wifi_stack[THREAD_STACK8_SIZE];
+
+
+
+#define DEMO_STACK_SIZE 1024
+#define DEMO_BYTE_POOL_SIZE 	TX_APP_MEM_POOL_SIZE
+#define DEMO_BLOCK_POOL_SIZE 100
+#define DEMO_QUEUE_SIZE 100
+
+#define SET_FLAG(var,pos)   (var|=(1<<pos))
+#define CHECK_FLAG(var,pos) (var&(1<<pos)?1:0)
+#define CLEAR_FLAG(var,pos) (var&=(~(1<<pos)))
+/* Define the ThreadX object control blocks... */
+
+TX_THREAD thread_init;
+TX_THREAD thread_sensor_temp;
+TX_THREAD thread_sensor_hum;
+TX_THREAD thread_sensor_accelo;
+TX_THREAD thread_sensor_pressure;
+TX_THREAD thread_sensor_magnetometer;
+TX_THREAD thread_ble_update;
+TX_THREAD thread_wifi_update;
+TX_QUEUE queue_0;
+TX_SEMAPHORE semaphore_0;
+TX_MUTEX mutex_0;
+TX_EVENT_FLAGS_GROUP event_flags_0;
+TX_BYTE_POOL byte_pool_0;
+TX_BLOCK_POOL block_pool_0;
+
+/* Define the counters used in the demo application... */
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+#define DUMMY_VALUE (0xFFFFFFFFU)
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+/* USER CODE BEGIN PV */
+uint8_t thread_flag = 0;
+static struct T_SENSOR_UNITS_MANAGEMENT   SensorUnitsManagement;
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+/* USER CODE BEGIN PFP */
+static void thread_init_entry(ULONG thread_input);
+static void thread_sensor_temp_entry(ULONG thread_input);
+static void thread_sensor_hum_entry(ULONG thread_input);
+static void thread_sensor_accelo_entry(ULONG thread_input);
+static void thread_sensor_pressure_entry(ULONG thread_input);
+static void thread_sensor_magnetometer_entry(ULONG thread_input);
+static void thread_ble_update_entry(ULONG thread_input);
+static void thread_wifi_update_entry(ULONG thread_input);
+static void check_new_data_to_update(void);
+static void send_new_data_to_update(void);
+
+/* USER CODE END PFP */
+
+/**
+  * @brief  Application ThreadX Initialization.
+  * @param memory_ptr: memory pointer
+  * @retval int
+  */
+UINT App_ThreadX_Init(VOID *memory_ptr)
+{
+  UINT ret_val = TX_SUCCESS;
+  /* USER CODE BEGIN App_ThreadX_MEM_POOL */
+
+  /* USER CODE END App_ThreadX_MEM_POOL */
+
+  /* USER CODE BEGIN App_ThreadX_Init */
+  TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL*)memory_ptr;
+  (void)byte_pool;
+#ifdef ENABLE_TRACEX_TEST
+  tx_trace_enable(&tracex_buffer,TRACEX_BUFFER_SIZE,30);
+#endif
+  /* USER CODE BEGIN App_ThreadX_Init */
+  /*thread 0*/
+  if(ret_val==TX_SUCCESS)
+  {
+	  ret_val = tx_thread_create(&thread_init, "my_thread1",
+			  thread_init_entry, 0x1234,
+			  thread_stack, THREAD_STACK1_SIZE,
+		  10, 10, 1,
+		  TX_AUTO_START);
+  }
+  /* thread 1 */
+
+  /*thread 1*/
+  if(ret_val==TX_SUCCESS)
+  {
+	  ret_val = tx_thread_create(&thread_sensor_temp, "my_thread2",
+			  thread_sensor_temp_entry, 0x1234,
+			  thread_sensor_temp_stack, THREAD_STACK2_SIZE,
+		  10, 10, 1,
+		  TX_AUTO_START);
+  }
+  /* thread 2 */
+  /*thread 2*/
+  if(ret_val==TX_SUCCESS)
+  {
+	  ret_val = tx_thread_create(&thread_sensor_hum, "my_thread3",
+			  thread_sensor_hum_entry, 0x1234,
+			  thread_sensor_hum_stack, THREAD_STACK3_SIZE,
+		  10, 10, 1,
+		  TX_AUTO_START);
+  }
+  /* thread 3 */
+
+  /*thread 3*/
+  if(ret_val==TX_SUCCESS)
+  {
+	  ret_val = tx_thread_create(&thread_sensor_accelo, "my_thread4",
+			  thread_sensor_accelo_entry, 0x1234,
+			  thread_sensor_accelo_stack, THREAD_STACK4_SIZE,
+		  10, 10, 1,
+		  TX_AUTO_START);
+  }
+  /* thread 4 */
+
+  /*thread 4*/
+  if(ret_val==TX_SUCCESS)
+  {
+	  ret_val = tx_thread_create(&thread_sensor_pressure, "my_thread5",
+			  thread_sensor_pressure_entry, 0x1234,
+			  thread_sensor_pres_stack, THREAD_STACK5_SIZE,
+		  10, 10, 1,
+		  TX_AUTO_START);
+  }
+  /* thread 5 */
+
+  /*thread 5*/
+  if(ret_val==TX_SUCCESS)
+  {
+	  ret_val = tx_thread_create(&thread_sensor_magnetometer, "my_thread6",
+			  thread_sensor_magnetometer_entry, 0x1234,
+			  thread_sensor_mag_stack, THREAD_STACK6_SIZE,
+		  10, 10, 1,
+		  TX_AUTO_START);
+  }
+  /* thread 6 */
+
+  /*thread 6*/
+  if(ret_val==TX_SUCCESS)
+  {
+	  ret_val = tx_thread_create(&thread_ble_update, "my_thread7",
+			  thread_ble_update_entry, 0x1234,
+			  thread_sensor_ble_stack, THREAD_STACK7_SIZE,
+		  11, 10, 1,
+		  TX_AUTO_START);
+  }
+  /* thread 7 */
+
+  /*thread 7*/
+  if(ret_val==TX_SUCCESS)
+  {
+	  ret_val = tx_thread_create(&thread_wifi_update, "my_thread8",
+			  thread_wifi_update_entry, 0x1234,
+			  thread_sensor_wifi_stack, THREAD_STACK8_SIZE,
+		  12, 10, 1,
+		  TX_AUTO_START);
+  }
+  /* thread 7 end */
+
+
+  /* USER CODE END App_ThreadX_Init */
+
+  return ret_val;
+}
+
+  /**
+  * @brief  Function that implements the kernel's initialization.
+  * @param  None
+  * @retval None
+  */
+void MX_ThreadX_Init(void)
+{
+  /* USER CODE BEGIN  Before_Kernel_Start */
+
+  /* USER CODE END  Before_Kernel_Start */
+
+  tx_kernel_enter();
+
+  /* USER CODE BEGIN  Kernel_Start_Error */
+
+  /* USER CODE END  Kernel_Start_Error */
+}
+
+/* USER CODE BEGIN 1 */
+static void send_new_data_to_update(void)
+{
+	if(CHECK_FLAG(SensorUnitsManagement.flag,0)==1)
+	{//distance
+		updateSignedMillesimal(CUSTOM_SERVICE_HANDLE,TOF_CHAR_HANDLE,TOF_VALUE,13,&SensorUnitsManagement.prev_distanceComplete);
+		CLEAR_FLAG(SensorUnitsManagement.flag,0);
+		tx_thread_sleep(200);
+	}
+	if(CHECK_FLAG(SensorUnitsManagement.flag,1)==1)
+	{//temp
+		updateSignedFloat(CUSTOM_SERVICE_HANDLE,TEMP_CHAR_HANDLE,VALUE_TEMP,9,&SensorUnitsManagement.prev_temp);
+		CLEAR_FLAG(SensorUnitsManagement.flag,1);
+		tx_thread_sleep(200);
+	}
+	if(CHECK_FLAG(SensorUnitsManagement.flag,2)==1)
+	{//hum
+		updateSignedFloat(CUSTOM_SERVICE_HANDLE,HUM_CHAR_HANDLE,VALUE_HUM,8,&SensorUnitsManagement.prev_hum);
+		CLEAR_FLAG(SensorUnitsManagement.flag,2);
+		tx_thread_sleep(200);
+	}
+	if(CHECK_FLAG(SensorUnitsManagement.flag,3)==1)
+	{//accelo
+		updateSignedMillesimal(INERTIAL_SERVICE_HANDLE,ACCX_CHAR_HANDLE,X_VALUE,10,&SensorUnitsManagement.prev_accx);
+		tx_thread_sleep(200);
+		updateSignedMillesimal(INERTIAL_SERVICE_HANDLE,ACCY_CHAR_HANDLE,Y_VALUE,10,&SensorUnitsManagement.prev_accy);
+		tx_thread_sleep(200);
+		updateSignedMillesimal(INERTIAL_SERVICE_HANDLE,ACCZ_CHAR_HANDLE,Z_VALUE,10,&SensorUnitsManagement.prev_accz);
+		CLEAR_FLAG(SensorUnitsManagement.flag,3);
+		tx_thread_sleep(200);
+	}
+	if(CHECK_FLAG(SensorUnitsManagement.flag,4)==1)
+	{//magneto
+		updateSignedMillesimal(MAGNETIC_SERVICE_HANDLE,MAGX_CHAR_HANDLE,X_VALUE,10,&SensorUnitsManagement.prev_magx);
+		tx_thread_sleep(200);
+		updateSignedMillesimal(MAGNETIC_SERVICE_HANDLE,MAGY_CHAR_HANDLE,Y_VALUE,10,&SensorUnitsManagement.prev_magy);
+		tx_thread_sleep(200);
+		updateSignedMillesimal(MAGNETIC_SERVICE_HANDLE,MAGZ_CHAR_HANDLE,Z_VALUE,10,&SensorUnitsManagement.prev_magz);
+		CLEAR_FLAG(SensorUnitsManagement.flag,4);
+		tx_thread_sleep(200);
+	}
+	if(CHECK_FLAG(SensorUnitsManagement.flag,5)==1)
+	{//pressure
+		updateSignedFloat(CUSTOM_SERVICE_HANDLE,PRESS_CHAR_HANDLE,VALUE_PRESS,10,&SensorUnitsManagement.prev_press);
+		CLEAR_FLAG(SensorUnitsManagement.flag,5);
+		tx_thread_sleep(200);
+	}
+}
+static void check_new_data_to_update(void)
+{
+	if(SensorUnitsManagement.distanceComplete!=SensorUnitsManagement.prev_distanceComplete)
+	{
+		SensorUnitsManagement.prev_distanceComplete = SensorUnitsManagement.distanceComplete;
+		SET_FLAG(SensorUnitsManagement.flag,0);
+	}
+	if(SensorUnitsManagement.temp!=SensorUnitsManagement.prev_temp)
+	{
+		SensorUnitsManagement.prev_temp = SensorUnitsManagement.temp;
+		SET_FLAG(SensorUnitsManagement.flag,1);
+	}
+	if(SensorUnitsManagement.hum!=SensorUnitsManagement.prev_hum)
+	{
+		SensorUnitsManagement.prev_hum = SensorUnitsManagement.hum;
+		SET_FLAG(SensorUnitsManagement.flag,2);
+	}
+	if((SensorUnitsManagement.accx!=SensorUnitsManagement.prev_accx)||
+			(SensorUnitsManagement.accy!=SensorUnitsManagement.prev_accy)||
+			(SensorUnitsManagement.accz!=SensorUnitsManagement.prev_accz))
+	{
+		SensorUnitsManagement.prev_accx = SensorUnitsManagement.accx;
+		SensorUnitsManagement.prev_accy = SensorUnitsManagement.accy;
+		SensorUnitsManagement.prev_accz = SensorUnitsManagement.accz;
+		SET_FLAG(SensorUnitsManagement.flag,3);
+	}
+	if((SensorUnitsManagement.magx!=SensorUnitsManagement.prev_magx)||
+			(SensorUnitsManagement.magy!=SensorUnitsManagement.prev_magy)||
+			(SensorUnitsManagement.magz!=SensorUnitsManagement.prev_magz))
+	{
+		SensorUnitsManagement.prev_magx = SensorUnitsManagement.magx;
+		SensorUnitsManagement.prev_magy = SensorUnitsManagement.magy;
+		SensorUnitsManagement.prev_magz = SensorUnitsManagement.magz;
+		SET_FLAG(SensorUnitsManagement.flag,4);
+	}
+	if(SensorUnitsManagement.press!=SensorUnitsManagement.prev_press)
+	{
+		SensorUnitsManagement.prev_press = SensorUnitsManagement.press;
+		SET_FLAG(SensorUnitsManagement.flag,5);
+	}
+}
+
+static void thread_init_entry(ULONG thread_input)
+{
+	while(1)
+	{
+		check_new_data_to_update();
+		tx_thread_sleep(400);
+	}
+}
+static void thread_sensor_temp_entry(ULONG thread_input)
+{
+	while(1)
+	{
+		getTemperature(&SensorUnitsManagement.temp);
+		tx_thread_sleep(200);
+	}
+}
+static void thread_sensor_hum_entry(ULONG thread_input)
+{
+	while(1)
+	{
+		getHumidity(&SensorUnitsManagement.hum);
+		tx_thread_sleep(200);
+	}
+}
+static void thread_sensor_accelo_entry(ULONG thread_input)
+{
+	while(1)
+	{
+		getAxisAccelerometer(&SensorUnitsManagement.accx,&SensorUnitsManagement.accy,&SensorUnitsManagement.accz);
+		tx_thread_sleep(200);
+	}
+}
+static void thread_sensor_pressure_entry(ULONG thread_input)
+{
+	while(1)
+	{
+		getPressure(&SensorUnitsManagement.press);
+		tx_thread_sleep(200);
+	}
+}
+static void thread_sensor_magnetometer_entry(ULONG thread_input)
+{
+	while(1)
+	{
+		getAxisMagnetometer(&SensorUnitsManagement.magx,&SensorUnitsManagement.magy,&SensorUnitsManagement.magz);
+		tx_thread_sleep(200);
+	}
+}
+static void thread_ble_update_entry(ULONG thread_input)
+{
+	while(1)
+	{
+		if(SensorUnitsManagement.flag!=0)
+		{
+			send_new_data_to_update();
+		}
+		tx_thread_sleep(300);
+	}
+}
+static void thread_wifi_update_entry(ULONG thread_input)
+{
+	while(1)
+	{
+		tx_thread_sleep(200);
+	}
+}
+
+
+/* USER CODE END 1 */
