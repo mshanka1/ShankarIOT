@@ -132,6 +132,13 @@ SECTIONS
     . = ALIGN(4);
   } >RAM
 
+  .trace :
+  {
+     . = ALIGN(4);
+     *(.trace)
+  } > RAM
+
+  /* RAM_D1*/
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
@@ -174,13 +181,6 @@ SECTIONS
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM
-._threadx_heap :
-{
-  . = ALIGN(8);
-  __RAM_segment_used_end__ = .;
-  . = . + 64K;
-  . = ALIGN(8);
-} >RAM_D1 AT> RAM_D1
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :

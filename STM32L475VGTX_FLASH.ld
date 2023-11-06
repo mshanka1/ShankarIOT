@@ -129,7 +129,13 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
     . = ALIGN(4);
   } >FLASH
+  .trace :
+  {
+     . = ALIGN(4);
+     *(.trace)
+  } > RAM
 
+  /* RAM_D1*/
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
@@ -175,13 +181,6 @@ SECTIONS
     . = ALIGN(8);
   } >RAM
 
-._threadx_heap :
-{
-  . = ALIGN(8);
-  __RAM_segment_used_end__ = .;
-  . = . + 64K;
-  . = ALIGN(8);
-} >RAM_D1 AT> RAM_D1
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :

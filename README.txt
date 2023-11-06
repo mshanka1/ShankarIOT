@@ -27,6 +27,8 @@ The board is capable of connecting the device with different wireless protocols 
 * RF 915MHz (Todo)
 
 # Available connectivity
+Added TraceX capability
+
 Next Steps:
 1. Create fully functional WiFi feature
 2. Add MQTT feature
